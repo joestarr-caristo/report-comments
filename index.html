@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Report Comment Selector</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 24px;
+      max-width: 1100px;
+    }
+
+    h1, h2 {
+      margin-bottom: 8px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .comment-list {
+      border: 1px solid #ccc;
+      padding: 12px;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    .comment-item {
+      margin-bottom: 10px;
+    }
+
+    .category {
+      font-weight: bold;
+      margin-top: 16px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 4px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 220px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      padding: 8px;
+    }
+
+    button {
+      padding: 8px 12px;
+      margin-bottom: 18px;
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Report Comment Selector</h1>
+
+  <div class="layout">
+    <section>
+      <h2>Report comments</h2>
+      <div id="commentList" class="comment-list">Loading comments...</div>
+    </section>
+
+    <section>
+      <h2>English combined comments</h2>
+      <textarea id="englishOutput" readonly></textarea>
+      <button onclick="copyText('englishOutput')">Copy English</button>
+
+      <label>
+        <input type="checkbox" id="showTranslations">
+        Show translated comments
+      </label>
+
+      <div id="translationSection" class="hidden">
+        <h2>Translated combined comments</h2>
+        <textarea id="translationOutput" readonly></textarea>
+        <button onclick="copyText('translationOutput')">Copy Translation</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const commentList = document.getElementById("commentList");
+    const englishOutput = document.getElementById("englishOutput");
+    const translationOutput = document.getElementById("translationOutput");
+    const showTranslations = document.getElementById("showTranslations");
+    const translationSection = document.getElementById("translationSection");
+
+    let comments = [];
+
+    fetch("comments.csv")
+      .then(response => response.text())
+      .then(csvText => {
+        comments = parseCSV(csvText);
+        buildCommentList(comments);
+      })
+      .catch(error => {
+        commentList.innerHTML = "Could not load comments.csv. Make sure it is in the same folder as this HTML file.";
+        console.error(error);
+      });
+
+    function parseCSV(text) {
+      const rows = text.trim().split(/\r?\n/).map(row => parseCSVRow(row));
+      const headers = rows.shift();
+
+      return rows.map(row => {
+        let item = {};
+        headers.forEach((header, index) => {
+          item[header.trim()] = row[index] ? row[index].trim() : "";
+        });
+        return item;
+      });
+    }
+
+    function parseCSVRow(row) {
+      const result = [];
+      let current = "";
+      let insideQuotes = false;
+
+      for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        const nextChar = row[i + 1];
+
+        if (char === '"' && insideQuotes && nextChar === '"') {
+          current += '"';
+          i++;
+        } else if (char === '"') {
+          insideQuotes = !insideQuotes;
+        } else if (char === "," && !insideQuotes) {
+          result.push(current);
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+
+      result.push(current);
+      return result;
+    }
+
+    function buildCommentList(data) {
+      commentList.innerHTML = "";
+
+      let currentCategory = "";
+
+      data.forEach((comment, index) => {
+        if (comment.Category !== currentCategory) {
+          currentCategory = comment.Category;
+          const categoryHeading = document.createElement("div");
+          categoryHeading.className = "category";
+          categoryHeading.textContent = currentCategory;
+          commentList.appendChild(categoryHeading);
+        }
+
+        const div = document.createElement("div");
+        div.className = "comment-item";
+
+        div.innerHTML = `
+          <label>
+            <input type="checkbox" data-index="${index}">
+            ${comment.Label}
+          </label>
+        `;
+
+        commentList.appendChild(div);
+      });
+
+      document.querySelectorAll("input[type='checkbox'][data-index]").forEach(box => {
+        box.addEventListener("change", updateOutputs);
+      });
+    }
+
+    function updateOutputs() {
+      const selectedBoxes = document.querySelectorAll("input[type='checkbox'][data-index]:checked");
+
+      const englishComments = [];
+      const translatedComments = [];
+
+      selectedBoxes.forEach(box => {
+        const comment = comments[box.dataset.index];
+        englishComments.push(comment.English);
+        translatedComments.push(comment.Translation);
+      });
+
+      englishOutput.value = englishComments.join(" ");
+      translationOutput.value = translatedComments.join(" ");
+    }
+
+    showTranslations.addEventListener("change", () => {
+      translationSection.classList.toggle("hidden", !showTranslations.checked);
+    });
+
+    function copyText(id) {
+      const textBox = document.getElementById(id);
+      textBox.select();
+      navigator.clipboard.writeText(textBox.value);
+    }
+  </script>
+
+</body>
+</html>
