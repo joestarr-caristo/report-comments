@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Report Comment Selector</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 24px;
+      background: #f6f6f6;
+    }
+
+    h1, h2 { margin-bottom: 8px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(900px, 1.8fr) minmax(500px, 1fr);
+      gap: 32px;
+      align-items: start;
+    }
+
+    .panel {
+      background: white;
+      padding: 18px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+
+    .search-box {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      margin-bottom: 12px;
+      border: 1px solid #bbb;
+      border-radius: 6px;
+    }
+
+    .selected-count {
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .warning-box {
+      color: #b00020;
+      font-weight: bold;
+      margin-bottom: 12px;
+      min-height: 20px;
+    }
+
+    .comment-list {
+      border: 1px solid #ccc;
+      padding: 12px;
+      max-height: calc(100vh - 250px);
+      overflow-y: auto;
+      background: #fafafa;
+      border-radius: 6px;
+    }
+
+    .category {
+      font-weight: bold;
+      font-size: 18px;
+      margin-top: 18px;
+      margin-bottom: 8px;
+      padding: 10px;
+      background: #eaeaea;
+      border-left: 5px solid #777;
+      cursor: pointer;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .category:hover { background: #ddd; }
+
+    .category::before { content: "▼ "; }
+    .category.collapsed::before { content: "▶ "; }
+
+    .subcategory {
+      font-weight: bold;
+      font-size: 16px;
+      margin-top: 10px;
+      margin-bottom: 6px;
+      padding: 8px 10px;
+      background: #f0f0f0;
+      border-left: 4px solid #aaa;
+      cursor: pointer;
+    }
+
+    .subcategory:hover { background: #e5e5e5; }
+
+    .subcategory::before { content: "▼ "; }
+    .subcategory.collapsed::before { content: "▶ "; }
+
+    .comment-item {
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      line-height: 1.45;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+
+    .comment-item:hover { background: #f3f7ff; }
+
+    .comment-item.selected {
+      background: #dff0ff;
+      border-color: #2d6cdf;
+    }
+
+    .comment-item input[type="checkbox"] {
+      transform: scale(1.2);
+      margin-right: 8px;
+    }
+
+    .comment-item select {
+      margin: 0 4px;
+      font-size: 15px;
+      padding: 3px 6px;
+      border-radius: 4px;
+    }
+
+    .missing-selection {
+      border: 2px solid #b00020 !important;
+      background: #fff2f2;
+    }
+
+    textarea {
+      width: 100%;
+      height: 240px;
+      margin-bottom: 8px;
+      font-size: 15px;
+      padding: 10px;
+      line-height: 1.4;
+      resize: vertical;
+    }
+
+    button {
+      padding: 8px 12px;
+      margin-bottom: 18px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    .language-options {
+      margin: 18px 0;
+      padding: 14px;
+      border: 1px solid #ddd;
+      background: #fafafa;
+      border-radius: 6px;
+    }
+
+    .language-options label {
+      display: inline-block;
+      margin-right: 18px;
+      margin-top: 10px;
+      font-size: 16px;
+    }
+
+    .hidden { display: none; }
+  </style>
+</head>
+
+<body>
+
+  <h1>Report Comment Selector</h1>
+
+  <div class="layout">
+
+    <section class="panel">
+      <h2>Report comments</h2>
+
+      <input type="text" id="searchBox" class="search-box" placeholder="Search comments...">
+
+      <div id="selectedCount" class="selected-count">Selected comments: 0</div>
+      <div id="warningBox" class="warning-box"></div>
+
+      <div id="commentList" class="comment-list">Loading comments...</div>
+    </section>
+
+    <section class="panel">
+      <h2>English (UK) combined comments</h2>
+      <textarea id="englishOutput" readonly></textarea>
+      <button onclick="copyText('englishOutput')">Copy English</button>
+
+      <div class="language-options">
+        <strong>Show translated comments</strong><br>
+
+        <label><input type="checkbox" class="language-toggle" data-language="EnglishUS"> English (US)</label>
+        <label><input type="checkbox" class="language-toggle" data-language="German"> German</label>
+        <label><input type="checkbox" class="language-toggle" data-language="French"> French</label>
+        <label><input type="checkbox" class="language-toggle" data-language="Italian"> Italian</label>
+      </div>
+
+      <div id="EnglishUSSection" class="hidden">
+        <h2>English (US) combined comments</h2>
+        <textarea id="EnglishUSOutput" readonly></textarea>
+        <button onclick="copyText('EnglishUSOutput')">Copy English (US)</button>
+      </div>
+
+      <div id="GermanSection" class="hidden">
+        <h2>German combined comments</h2>
+        <textarea id="GermanOutput" readonly></textarea>
+        <button onclick="copyText('GermanOutput')">Copy German</button>
+      </div>
+
+      <div id="FrenchSection" class="hidden">
+        <h2>French combined comments</h2>
+        <textarea id="FrenchOutput" readonly></textarea>
+        <button onclick="copyText('FrenchOutput')">Copy French</button>
+      </div>
+
+      <div id="ItalianSection" class="hidden">
+        <h2>Italian combined comments</h2>
+        <textarea id="ItalianOutput" readonly></textarea>
+        <button onclick="copyText('ItalianOutput')">Copy Italian</button>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    const commentList = document.getElementById("commentList");
+    const englishOutput = document.getElementById("englishOutput");
+    const searchBox = document.getElementById("searchBox");
+    const selectedCount = document.getElementById("selectedCount");
+    const warningBox = document.getElementById("warningBox");
+
+    const languages = ["EnglishUS", "German", "French", "Italian"];
+
+    let comments = [];
+    let vessels = [];
+    let segments = [];
+
+    Promise.all([
+      fetch("comments.csv").then(response => response.text()),
+      fetch("vessels.csv").then(response => response.text()),
+      fetch("segments.csv").then(response => response.text())
+    ])
+    .then(([commentsCsv, vesselsCsv, segmentsCsv]) => {
+      comments = parseCSV(commentsCsv);
+      vessels = parseCSV(vesselsCsv).filter(item => item.English && item.English.trim() !== "");
+      segments = parseCSV(segmentsCsv).filter(item => item.English && item.English.trim() !== "");
+      buildCommentList(comments);
+    })
+    .catch(error => {
+      commentList.innerHTML = "Could not load comments.csv, vessels.csv or segments.csv. Make sure they are in the same folder as index.html.";
+      console.error(error);
+    });
+
+    function parseCSV(text) {
+      const rows = text.trim().split(/\r?\n/).map(row => parseCSVRow(row));
+      const headers = rows.shift();
+
+      return rows.map(row => {
+        let item = {};
+        headers.forEach((header, index) => {
+          item[header.trim()] = row[index] ? row[index].trim() : "";
+        });
+        return item;
+      });
+    }
+
+    function parseCSVRow(row) {
+      const result = [];
+      let current = "";
+      let insideQuotes = false;
+
+      for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        const nextChar = row[i + 1];
+
+        if (char === '"' && insideQuotes && nextChar === '"') {
+          current += '"';
+          i++;
+        } else if (char === '"') {
+          insideQuotes = !insideQuotes;
+        } else if (char === "," && !insideQuotes) {
+          result.push(current);
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+
+      result.push(current);
+      return result;
+    }
+
+    function buildCommentList(data) {
+      commentList.innerHTML = "";
+
+      let currentCategory = "";
+      let currentSubcategory = "";
+
+      data.forEach((comment, index) => {
+        if (comment.Category !== currentCategory) {
+          currentCategory = comment.Category;
+          currentSubcategory = "";
+
+          const categoryHeading = document.createElement("div");
+          categoryHeading.className = "category collapsed";
+          categoryHeading.textContent = currentCategory || "Uncategorised";
+
+          categoryHeading.addEventListener("click", () => {
+            categoryHeading.classList.toggle("collapsed");
+
+            let next = categoryHeading.nextElementSibling;
+            while (next && !next.classList.contains("category")) {
+              next.classList.toggle("hidden");
+              next = next.nextElementSibling;
+            }
+          });
+
+          commentList.appendChild(categoryHeading);
+        }
+
+        if (comment.Subcategory !== currentSubcategory) {
+          currentSubcategory = comment.Subcategory;
+
+          const subcategoryHeading = document.createElement("div");
+          subcategoryHeading.className = "subcategory collapsed hidden";
+          subcategoryHeading.textContent = currentSubcategory || "General";
+
+          subcategoryHeading.addEventListener("click", () => {
+            subcategoryHeading.classList.toggle("collapsed");
+
+            let next = subcategoryHeading.nextElementSibling;
+            while (
+              next &&
+              !next.classList.contains("subcategory") &&
+              !next.classList.contains("category")
+            ) {
+              next.classList.toggle("hidden");
+              next = next.nextElementSibling;
+            }
+          });
+
+          commentList.appendChild(subcategoryHeading);
+        }
+
+        const item = document.createElement("div");
+        item.className = "comment-item hidden";
+
+        item.dataset.searchText = [
+          comment.Category,
+          comment.Subcategory,
+          comment.English,
+          comment.EnglishUS,
+          comment.German,
+          comment.French,
+          comment.Italian
+        ].join(" ").toLowerCase();
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.dataset.index = index;
+
+        checkbox.addEventListener("change", () => {
+          item.classList.toggle("selected", checkbox.checked);
+          updateOutputs();
+        });
+
+        item.appendChild(checkbox);
+        item.appendChild(document.createTextNode(" "));
+
+        renderCommentWithDropdowns(item, comment.English, index);
+
+        commentList.appendChild(item);
+      });
+    }
+
+    function renderCommentWithDropdowns(container, text, commentIndex) {
+      const parts = String(text || "").split(/(\[vessel\]|\[segment\])/g);
+
+      let vesselNumber = 0;
+      let segmentNumber = 0;
+
+      parts.forEach(part => {
+        if (part === "[vessel]") {
+          const select = createDropdown(
+            commentIndex,
+            "vessel",
+            vesselNumber,
+            vessels,
+            "-- Select vessel --"
+          );
+
+          container.appendChild(select);
+          vesselNumber++;
+        } else if (part === "[segment]") {
+          const select = createDropdown(
+            commentIndex,
+            "segment",
+            segmentNumber,
+            segments,
+            "-- Select segment --"
+          );
+
+          container.appendChild(select);
+          segmentNumber++;
+        } else {
+          container.appendChild(document.createTextNode(part));
+        }
+      });
+    }
+
+    function createDropdown(commentIndex, placeholder, number, options, label) {
+      const select = document.createElement("select");
+      select.dataset.index = commentIndex;
+      select.dataset.placeholder = placeholder;
+      select.dataset.number = number;
+
+      const placeholderOption = document.createElement("option");
+      placeholderOption.value = "";
+      placeholderOption.textContent = label;
+      placeholderOption.selected = true;
+      placeholderOption.disabled = true;
+      select.appendChild(placeholderOption);
+
+      options.forEach(item => {
+        const option = document.createElement("option");
+        option.value = item.English;
+        option.dataset.englishus = item.EnglishUS || item.English;
+        option.dataset.german = item.German || item.English;
+        option.dataset.french = item.French || item.English;
+        option.dataset.italian = item.Italian || item.English;
+        option.textContent = item.English;
+        select.appendChild(option);
+      });
+
+      select.addEventListener("change", () => {
+        select.classList.remove("missing-selection");
+        updateOutputs();
+      });
+
+      return select;
+    }
+
+    function validateSelectedComments() {
+      let isValid = true;
+      let firstMissing = null;
+
+      document.querySelectorAll('select[data-placeholder="vessel"], select[data-placeholder="segment"]').forEach(select => {
+        const parentComment = select.closest(".comment-item");
+        const checkbox = parentComment.querySelector('input[type="checkbox"]');
+
+        if (checkbox.checked && !select.value) {
+          select.classList.add("missing-selection");
+
+          if (!firstMissing) {
+            firstMissing = select;
+          }
+
+          isValid = false;
+        } else {
+          select.classList.remove("missing-selection");
+        }
+      });
+
+      if (!isValid) {
+        warningBox.textContent = "Please complete all dropdown selections for selected comments before copying.";
+
+        if (firstMissing) {
+          firstMissing.focus();
+        }
+      } else {
+        warningBox.textContent = "";
+      }
+
+      return isValid;
+    }
+
+    function updateOutputs() {
+      const selectedBoxes = document.querySelectorAll("input[type='checkbox'][data-index]:checked");
+
+      selectedCount.textContent = "Selected comments: " + selectedBoxes.length;
+
+      const englishComments = [];
+
+      const translatedComments = {
+        EnglishUS: [],
+        German: [],
+        French: [],
+        Italian: []
+      };
+
+      selectedBoxes.forEach(box => {
+        const index = box.dataset.index;
+        const comment = comments[index];
+
+        let english = comment.English || "";
+
+        const languageTexts = {
+          EnglishUS: comment.EnglishUS || comment.English || "",
+          German: comment.German || comment.English || "",
+          French: comment.French || comment.English || "",
+          Italian: comment.Italian || comment.English || ""
+        };
+
+        const selects = document.querySelectorAll(`select[data-index="${index}"]`);
+
+        let commentHasMissingSelection = false;
+
+        selects.forEach(select => {
+          if (!select.value) {
+            commentHasMissingSelection = true;
+            return;
+          }
+
+          const selectedOption = select.options[select.selectedIndex];
+          const placeholder = "[" + select.dataset.placeholder + "]";
+
+          english = english.replace(placeholder, selectedOption.value);
+
+          languageTexts.EnglishUS =
+            languageTexts.EnglishUS.replace(placeholder, selectedOption.dataset.englishus);
+
+          languageTexts.German =
+            languageTexts.German.replace(placeholder, selectedOption.dataset.german);
+
+          languageTexts.French =
+            languageTexts.French.replace(placeholder, selectedOption.dataset.french);
+
+          languageTexts.Italian =
+            languageTexts.Italian.replace(placeholder, selectedOption.dataset.italian);
+        });
+
+        if (!commentHasMissingSelection) {
+          englishComments.push(english);
+
+          languages.forEach(language => {
+            translatedComments[language].push(languageTexts[language]);
+          });
+        }
+      });
+
+      englishOutput.value = englishComments.join("\n");
+
+      languages.forEach(language => {
+        document.getElementById(language + "Output").value =
+          translatedComments[language].join("\n");
+      });
+    }
+
+    searchBox.addEventListener("input", () => {
+      const searchTerm = searchBox.value.toLowerCase();
+
+      document.querySelectorAll(".category, .subcategory, .comment-item").forEach(element => {
+        element.classList.remove("hidden");
+      });
+
+      if (!searchTerm) {
+        document.querySelectorAll(".subcategory, .comment-item").forEach(element => {
+          element.classList.add("hidden");
+        });
+
+        document.querySelectorAll(".category, .subcategory").forEach(element => {
+          element.classList.add("collapsed");
+        });
+
+        document.querySelectorAll(".comment-item").forEach(item => {
+          item.style.display = "block";
+        });
+
+        return;
+      }
+
+      document.querySelectorAll(".comment-item").forEach(item => {
+        const matches = item.dataset.searchText.includes(searchTerm);
+        item.style.display = matches ? "block" : "none";
+      });
+
+      document.querySelectorAll(".category, .subcategory").forEach(heading => {
+        heading.classList.remove("collapsed");
+      });
+    });
+
+    document.querySelectorAll(".language-toggle").forEach(toggle => {
+      toggle.addEventListener("change", () => {
+        const language = toggle.dataset.language;
+        const section = document.getElementById(language + "Section");
+        section.classList.toggle("hidden", !toggle.checked);
+      });
+    });
+
+    function copyText(id) {
+      if (!validateSelectedComments()) {
+        return;
+      }
+
+      updateOutputs();
+
+      const textBox = document.getElementById(id);
+      textBox.select();
+      navigator.clipboard.writeText(textBox.value);
+    }
+  </script>
+
+</body>
+</html>
