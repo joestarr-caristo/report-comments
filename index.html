@@ -85,123 +85,157 @@
     </section>
   </div>
 
-  <script>
-    const commentList = document.getElementById("commentList");
-    const englishOutput = document.getElementById("englishOutput");
-    const translationOutput = document.getElementById("translationOutput");
-    const showTranslations = document.getElementById("showTranslations");
-    const translationSection = document.getElementById("translationSection");
+ <script>
+  const commentList = document.getElementById("commentList");
+  const englishOutput = document.getElementById("englishOutput");
+  const translationOutput = document.getElementById("translationOutput");
+  const showTranslations = document.getElementById("showTranslations");
+  const translationSection = document.getElementById("translationSection");
 
-    let comments = [];
+  let comments = [];
+  let vessels = [];
 
-    fetch("comments.csv")
-      .then(response => response.text())
-      .then(csvText => {
-        comments = parseCSV(csvText);
-        buildCommentList(comments);
-      })
-      .catch(error => {
-        commentList.innerHTML = "Could not load comments.csv. Make sure it is in the same folder as this HTML file.";
-        console.error(error);
+  Promise.all([
+    fetch("comments.csv").then(r => r.text()),
+    fetch("vessels.csv").then(r => r.text())
+  ])
+  .then(([commentsCsv, vesselsCsv]) => {
+    comments = parseCSV(commentsCsv);
+    vessels = parseCSV(vesselsCsv);
+    buildCommentList(comments);
+  })
+  .catch(error => {
+    commentList.innerHTML = "Could not load comments.csv or vessels.csv.";
+    console.error(error);
+  });
+
+  function parseCSV(text) {
+    const rows = text.trim().split(/\r?\n/).map(row => parseCSVRow(row));
+    const headers = rows.shift();
+
+    return rows.map(row => {
+      let item = {};
+      headers.forEach((header, index) => {
+        item[header.trim()] = row[index] ? row[index].trim() : "";
       });
+      return item;
+    });
+  }
 
-    function parseCSV(text) {
-      const rows = text.trim().split(/\r?\n/).map(row => parseCSVRow(row));
-      const headers = rows.shift();
+  function parseCSVRow(row) {
+    const result = [];
+    let current = "";
+    let insideQuotes = false;
 
-      return rows.map(row => {
-        let item = {};
-        headers.forEach((header, index) => {
-          item[header.trim()] = row[index] ? row[index].trim() : "";
-        });
-        return item;
-      });
+    for (let i = 0; i < row.length; i++) {
+      const char = row[i];
+      const nextChar = row[i + 1];
+
+      if (char === '"' && insideQuotes && nextChar === '"') {
+        current += '"';
+        i++;
+      } else if (char === '"') {
+        insideQuotes = !insideQuotes;
+      } else if (char === "," && !insideQuotes) {
+        result.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
     }
 
-    function parseCSVRow(row) {
-      const result = [];
-      let current = "";
-      let insideQuotes = false;
+    result.push(current);
+    return result;
+  }
 
-      for (let i = 0; i < row.length; i++) {
-        const char = row[i];
-        const nextChar = row[i + 1];
+  function buildCommentList(data) {
+    commentList.innerHTML = "";
+    let currentCategory = "";
 
-        if (char === '"' && insideQuotes && nextChar === '"') {
-          current += '"';
-          i++;
-        } else if (char === '"') {
-          insideQuotes = !insideQuotes;
-        } else if (char === "," && !insideQuotes) {
-          result.push(current);
-          current = "";
-        } else {
-          current += char;
-        }
+    data.forEach((comment, index) => {
+      if (comment.Category !== currentCategory) {
+        currentCategory = comment.Category;
+        const categoryHeading = document.createElement("div");
+        categoryHeading.className = "category";
+        categoryHeading.textContent = currentCategory;
+        commentList.appendChild(categoryHeading);
       }
 
-      result.push(current);
-      return result;
-    }
+      const div = document.createElement("div");
+      div.className = "comment-item";
 
-    function buildCommentList(data) {
-      commentList.innerHTML = "";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.dataset.index = index;
 
-      let currentCategory = "";
+      const label = document.createElement("label");
+      label.appendChild(checkbox);
+      label.append(" " + comment.English);
 
-      data.forEach((comment, index) => {
-        if (comment.Category !== currentCategory) {
-          currentCategory = comment.Category;
-          const categoryHeading = document.createElement("div");
-          categoryHeading.className = "category";
-          categoryHeading.textContent = currentCategory;
-          commentList.appendChild(categoryHeading);
-        }
+      div.appendChild(label);
 
-        const div = document.createElement("div");
-        div.className = "comment-item";
+      if (comment.English.includes("[vessel]")) {
+        const select = document.createElement("select");
+        select.dataset.index = index;
 
-        div.innerHTML = `
-          <label>
-            <input type="checkbox" data-index="${index}">
-            ${comment.Label}
-          </label>
-        `;
+        vessels.forEach(vessel => {
+          const option = document.createElement("option");
+          option.value = vessel.English;
+          option.dataset.translation = vessel.Translation;
+          option.textContent = vessel.English;
+          select.appendChild(option);
+        });
 
-        commentList.appendChild(div);
-      });
+        select.addEventListener("change", updateOutputs);
+        div.appendChild(document.createElement("br"));
+        div.appendChild(select);
+      }
 
-      document.querySelectorAll("input[type='checkbox'][data-index]").forEach(box => {
-        box.addEventListener("change", updateOutputs);
-      });
-    }
+      checkbox.addEventListener("change", updateOutputs);
+      commentList.appendChild(div);
+    });
+  }
 
-    function updateOutputs() {
-      const selectedBoxes = document.querySelectorAll("input[type='checkbox'][data-index]:checked");
+  function updateOutputs() {
+    const selectedBoxes = document.querySelectorAll("input[type='checkbox'][data-index]:checked");
 
-      const englishComments = [];
-      const translatedComments = [];
+    const englishComments = [];
+    const translatedComments = [];
 
-      selectedBoxes.forEach(box => {
-        const comment = comments[box.dataset.index];
-        englishComments.push(comment.English);
-        translatedComments.push(comment.Translation);
-      });
+    selectedBoxes.forEach(box => {
+      const index = box.dataset.index;
+      const comment = comments[index];
 
-      englishOutput.value = englishComments.join(" ");
-      translationOutput.value = translatedComments.join(" ");
-    }
+      let english = comment.English;
+      let translation = comment.Translation;
 
-    showTranslations.addEventListener("change", () => {
-      translationSection.classList.toggle("hidden", !showTranslations.checked);
+      const select = document.querySelector(`select[data-index="${index}"]`);
+
+      if (select) {
+        const selectedOption = select.options[select.selectedIndex];
+
+        english = english.replace("[vessel]", selectedOption.value);
+        translation = translation.replace("[vessel]", selectedOption.dataset.translation);
+      }
+
+      englishComments.push(english);
+      translatedComments.push(translation);
     });
 
-    function copyText(id) {
-      const textBox = document.getElementById(id);
-      textBox.select();
-      navigator.clipboard.writeText(textBox.value);
-    }
-  </script>
+    englishOutput.value = englishComments.join(" ");
+    translationOutput.value = translatedComments.join(" ");
+  }
+
+  showTranslations.addEventListener("change", () => {
+    translationSection.classList.toggle("hidden", !showTranslations.checked);
+  });
+
+  function copyText(id) {
+    const textBox = document.getElementById(id);
+    textBox.select();
+    navigator.clipboard.writeText(textBox.value);
+  }
+</script>
 
 </body>
 </html>
