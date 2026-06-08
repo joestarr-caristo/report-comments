@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Report Comment Selector</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 24px;
+      max-width: 1200px;
+    }
+
+    h1, h2 {
+      margin-bottom: 8px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .comment-list {
+      border: 1px solid #ccc;
+      padding: 12px;
+      max-height: 650px;
+      overflow-y: auto;
+    }
+
+    .category {
+      font-weight: bold;
+      margin-top: 16px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 4px;
+    }
+
+    .comment-item {
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .comment-item select {
+      margin: 0 4px;
+      font-size: 14px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 220px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      padding: 8px;
+    }
+
+    button {
+      padding: 8px 12px;
+      margin-bottom: 18px;
+      cursor: pointer;
+    }
+
+    label {
+      font-size: 16px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Report Comment Selector</h1>
+
+  <div class="layout">
+    <section>
+      <h2>Report comments</h2>
+      <div id="commentList" class="comment-list">Loading comments...</div>
+    </section>
+
+    <section>
+      <h2>English combined comments</h2>
+      <textarea id="englishOutput" readonly></textarea>
+      <button onclick="copyText('englishOutput')">Copy English</button>
+
+      <label>
+        <input type="checkbox" id="showTranslations">
+        Show translated comments
+      </label>
+
+      <div id="translationSection" class="hidden">
+        <h2>Translated combined comments</h2>
+        <textarea id="translationOutput" readonly></textarea>
+        <button onclick="copyText('translationOutput')">Copy Translation</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const commentList = document.getElementById("commentList");
+    const englishOutput = document.getElementById("englishOutput");
+    const translationOutput = document.getElementById("translationOutput");
+    const showTranslations = document.getElementById("showTranslations");
+    const translationSection = document.getElementById("translationSection");
+
+    let comments = [];
+    let vessels = [];
+
+    Promise.all([
+      fetch("comments.csv").then(response => response.text()),
+      fetch("vessels.csv").then(response => response.text())
+    ])
+    .then(([commentsCsv, vesselsCsv]) => {
+      comments = parseCSV(commentsCsv);
+      vessels = parseCSV(vesselsCsv);
+      buildCommentList(comments);
+    })
+    .catch(error => {
+      commentList.innerHTML = "Could not load comments.csv or vessels.csv. Make sure they are in the same folder as index.html.";
+      console.error(error);
+    });
+
+    function parseCSV(text) {
+      const rows = text.trim().split(/\r?\n/).map(row => parseCSVRow(row));
+      const headers = rows.shift();
+
+      return rows.map(row => {
+        let item = {};
+        headers.forEach((header, index) => {
+          item[header.trim()] = row[index] ? row[index].trim() : "";
+        });
+        return item;
+      });
+    }
+
+    function parseCSVRow(row) {
+      const result = [];
+      let current = "";
+      let insideQuotes = false;
+
+      for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        const nextChar = row[i + 1];
+
+        if (char === '"' && insideQuotes && nextChar === '"') {
+          current += '"';
+          i++;
+        } else if (char === '"') {
+          insideQuotes = !insideQuotes;
+        } else if (char === "," && !insideQuotes) {
+          result.push(current);
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+
+      result.push(current);
+      return result;
+    }
+
+    function buildCommentList(data) {
+      commentList.innerHTML = "";
+      let currentCategory = "";
+
+      data.forEach((comment, index) => {
+        if (comment.Category !== currentCategory) {
+          currentCategory = comment.Category;
+
+          const categoryHeading = document.createElement("div");
+          categoryHeading.className = "category";
+          categoryHeading.textContent = currentCategory;
+          commentList.appendChild(categoryHeading);
+        }
+
+        const item = document.createElement("div");
+        item.className = "comment-item";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.dataset.index = index;
+        checkbox.addEventListener("change", updateOutputs);
+
+        item.appendChild(checkbox);
+        item.appendChild(document.createTextNode(" "));
+
+        renderCommentWithDropdowns(item, comment.English, index);
+
+        commentList.appendChild(item);
+      });
+    }
+
+    function renderCommentWithDropdowns(container, text, commentIndex) {
+      const parts = text.split(/(\[vessel\])/g);
+      let vesselNumber = 0;
+
+      parts.forEach(part => {
+        if (part === "[vessel]") {
+          const select = document.createElement("select");
+          select.dataset.index = commentIndex;
+          select.dataset.placeholder = "vessel";
+          select.dataset.number = vesselNumber;
+
+          vessels.forEach(vessel => {
+            const option = document.createElement("option");
+            option.value = vessel.English;
+            option.dataset.translation = vessel.Translation;
+            option.textContent = vessel.English;
+            select.appendChild(option);
+          });
+
+          select.addEventListener("change", updateOutputs);
+          container.appendChild(select);
+
+          vesselNumber++;
+        } else {
+          container.appendChild(document.createTextNode(part));
+        }
+      });
+    }
+
+    function updateOutputs() {
+      const selectedBoxes = document.querySelectorAll("input[type='checkbox'][data-index]:checked");
+
+      const englishComments = [];
+      const translatedComments = [];
+
+      selectedBoxes.forEach(box => {
+        const index = box.dataset.index;
+        const comment = comments[index];
+
+        let english = comment.English;
+        let translation = comment.Translation;
+
+        const selects = document.querySelectorAll(
+          `select[data-index="${index}"][data-placeholder="vessel"]`
+        );
+
+        selects.forEach(select => {
+          const selectedOption = select.options[select.selectedIndex];
+
+          english = english.replace("[vessel]", selectedOption.value);
+          translation = translation.replace("[vessel]", selectedOption.dataset.translation);
+        });
+
+        englishComments.push(english);
+        translatedComments.push(translation);
+      });
+
+      englishOutput.value = englishComments.join(" ");
+      translationOutput.value = translatedComments.join(" ");
+    }
+
+    showTranslations.addEventListener("change", () => {
+      translationSection.classList.toggle("hidden", !showTranslations.checked);
+    });
+
+    function copyText(id) {
+      const textBox = document.getElementById(id);
+      textBox.select();
+      navigator.clipboard.writeText(textBox.value);
+    }
+  </script>
+
+</body>
+</html>
