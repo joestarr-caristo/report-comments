@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Report Comment Selector</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f6f8;
+      --surface: #ffffff;
+      --surface-2: #f8f9fb;
+      --border: rgba(0,0,0,0.10);
+      --border-strong: rgba(0,0,0,0.18);
+      --text: #1a1d23;
+      --text-2: #5a6070;
+      --text-3: #8a90a0;
+      --blue: #2563eb;
+      --blue-bg: #eff4ff;
+      --blue-border: #bfcfff;
+      --red: #c0392b;
+      --red-bg: #fff2f0;
+      --green: #1a7f4b;
+      --focus-ring: 0 0 0 3px rgba(37,99,235,0.25);
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow: 0 2px 8px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
+      --transition: 0.15s ease;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #12141a;
+        --surface: #1e2128;
+        --surface-2: #252830;
+        --border: rgba(255,255,255,0.09);
+        --border-strong: rgba(255,255,255,0.16);
+        --text: #e8eaf0;
+        --text-2: #9098b0;
+        --text-3: #60687a;
+        --blue: #5b8fff;
+        --blue-bg: #1a2340;
+        --blue-border: #2d3f70;
+        --red: #f07070;
+        --red-bg: #2a1515;
+        --green: #4cc68a;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ── Header ───────────────────────────────────────── */
+    .app-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .app-header h1 {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .header-meta {
+      font-size: 12px;
+      color: var(--text-3);
+      margin-top: 2px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition);
+      line-height: 1;
+    }
+    .btn:hover { background: var(--surface-2); }
+    .btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+    .btn:active { transform: scale(0.98); }
+
+    .btn-primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+
+    /* ── Layout ───────────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 20px;
+      padding: 20px 24px;
+      max-width: 1440px;
+      margin: 0 auto;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Panel ────────────────────────────────────────── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 20px;
+      padding: 0 6px;
+      background: var(--blue-bg);
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 10px;
+      border: 1px solid var(--blue-border);
+    }
+
+    .badge-neutral {
+      background: var(--surface-2);
+      color: var(--text-2);
+      border-color: var(--border);
+    }
+
+    /* ── Search ───────────────────────────────────────── */
+    .search-wrap {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 30px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-3);
+      pointer-events: none;
+    }
+
+    .search-box {
+      width: 100%;
+      padding: 8px 12px 8px 34px;
+      font-size: 14px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      color: var(--text);
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .search-box::placeholder { color: var(--text-3); }
+    .search-box:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: var(--focus-ring);
+      background: var(--surface);
+    }
+
+    /* ── Warning ──────────────────────────────────────── */
+    .warning-box {
+      margin: 0 18px 0;
+      padding: 10px 14px;
+      background: var(--red-bg);
+      border: 1px solid var(--red);
+      border-radius: var(--radius);
+      color: var(--red);
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .warning-box.visible {
+      display: flex;
+      margin-bottom: 12px;
+    }
+
+    /* ── Comment list ─────────────────────────────────── */
+    .comment-list {
+      max-height: calc(100vh - 220px);
+      overflow-y: auto;
+      padding: 10px;
+      scroll-behavior: smooth;
+    }
+
+    .comment-list::-webkit-scrollbar { width: 6px; }
+    .comment-list::-webkit-scrollbar-track { background: transparent; }
+    .comment-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+    .category-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      margin: 8px 0 4px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+      transition: background var(--transition);
+    }
+    .category-heading:hover { background: var(--bg); }
+    .category-heading:first-child { margin-top: 0; }
+
+    .category-chevron {
+      color: var(--text-3);
+      transition: transform 0.2s ease;
+      font-size: 13px;
+    }
+    .category-heading.open .category-chevron { transform: rotate(90deg); }
+
+    .subcategory-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 12px 7px 20px;
+      margin: 3px 0 2px;
+      background: transparent;
+      border-radius: var(--radius);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-2);
+      cursor: pointer;
+      user-select: none;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      transition: background var(--transition);
+    }
+    .subcategory-heading:hover { background: var(--surface-2); }
+
+    .subcategory-chevron {
+      color: var(--text-3);
+      font-size: 11px;
+      transition: transform 0.2s ease;
+    }
+    .subcategory-heading.open .subcategory-chevron { transform: rotate(90deg); }
+
+    .comment-item {
+      padding: 12px 14px;
+      margin: 3px 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+    }
+    .comment-item:hover {
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-sm);
+    }
+    .comment-item.selected {
+      background: var(--blue-bg);
+      border-color: var(--blue-border);
+    }
+    .comment-item.selected:hover {
+      border-color: var(--blue);
+    }
+
+    .comment-inner {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .comment-checkbox {
+      width: 16px;
+      height: 16px;
+      margin-top: 2px;
+      flex-shrink: 0;
+      accent-color: var(--blue);
+      cursor: pointer;
+    }
+
+    .comment-text {
+      flex: 1;
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--text);
+    }
+
+    mark {
+      background: #fff176;
+      color: inherit;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+    @media (prefers-color-scheme: dark) {
+      mark { background: #5a5200; }
+    }
+
+    .dropdown-input {
+      display: inline-block;
+      font-size: 13px;
+      padding: 3px 8px;
+      border-radius: 5px;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      color: var(--text);
+      min-width: 160px;
+      margin: 0 2px;
+      vertical-align: baseline;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .dropdown-input:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: var(--focus-ring);
+    }
+    .dropdown-input.missing {
+      border-color: var(--red);
+      background: var(--red-bg);
+    }
+
+    .hidden { display: none !important; }
+
+    /* ── Right panel ──────────────────────────────────── */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Selected list ────────────────────────────────── */
+    .selected-list {
+      padding: 10px;
+      min-height: 60px;
+    }
+
+    .empty-state {
+      padding: 20px;
+      text-align: center;
+      color: var(--text-3);
+      font-size: 13px;
+    }
+
+    .selected-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 9px 10px;
+      margin-bottom: 4px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 13px;
+      line-height: 1.45;
+      cursor: grab;
+      transition: background var(--transition), box-shadow var(--transition);
+    }
+    .selected-item:active { cursor: grabbing; }
+    .selected-item.drag-over {
+      background: var(--blue-bg);
+      border-color: var(--blue-border);
+    }
+
+    .drag-handle {
+      color: var(--text-3);
+      flex-shrink: 0;
+      font-size: 13px;
+      padding-top: 1px;
+      cursor: grab;
+    }
+
+    .selected-item-text { flex: 1; color: var(--text); }
+
+    .remove-btn {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      color: var(--text-3);
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0;
+      transition: background var(--transition), color var(--transition);
+    }
+    .remove-btn:hover { background: var(--red-bg); color: var(--red); }
+
+    /* ── Output section ───────────────────────────────── */
+    .output-section { padding: 14px 14px 10px; }
+
+    .output-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .output-wrap { position: relative; }
+
+    .output-textarea {
+      width: 100%;
+      min-height: 140px;
+      max-height: 280px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.55;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      color: var(--text);
+      resize: vertical;
+      font-family: inherit;
+    }
+    .output-textarea:focus { outline: none; border-color: var(--blue); box-shadow: var(--focus-ring); }
+
+    .copy-btn {
+      margin-top: 8px;
+      width: 100%;
+      justify-content: center;
+      font-size: 13px;
+    }
+    .copy-btn.copied { background: #ecfdf5; border-color: #a7f3d0; color: var(--green); }
+
+    /* ── Language toggles ─────────────────────────────── */
+    .lang-section {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .lang-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .lang-toggle {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text-2);
+      background: var(--surface-2);
+      user-select: none;
+      transition: background var(--transition), border-color var(--transition);
+    }
+    .lang-toggle:hover { background: var(--bg); border-color: var(--border-strong); }
+    .lang-toggle input { accent-color: var(--blue); }
+    .lang-toggle.active { background: var(--blue-bg); border-color: var(--blue-border); color: var(--text); }
+
+    /* ── Actions row ──────────────────────────────────── */
+    .actions-row {
+      display: flex;
+      gap: 8px;
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Modal ────────────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-box {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      padding: 24px;
+      width: 560px;
+      max-width: calc(100vw - 40px);
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .modal-title { font-size: 17px; font-weight: 600; }
+
+    .modal-close {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-2);
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .modal-close:hover { background: var(--surface-2); }
+
+    .modal-meta {
+      font-size: 13px;
+      color: var(--text-2);
+      margin-bottom: 6px;
+    }
+
+    .modal-desc {
+      font-size: 14px;
+      color: var(--text-2);
+      margin: 12px 0 20px;
+      line-height: 1.6;
+    }
+
+    .changelog-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .changelog-table th {
+      text-align: left;
+      padding: 8px 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      font-weight: 600;
+      color: var(--text-2);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .changelog-table td {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .changelog-table tr:last-child td { border-bottom: 1px solid var(--border); }
+
+    .version-badge {
+      display: inline-flex;
+      padding: 2px 8px;
+      background: var(--blue-bg);
+      color: var(--blue);
+      border: 1px solid var(--blue-border);
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* ── Loading state ────────────────────────────────── */
+    .loading-msg {
+      padding: 32px;
+      text-align: center;
+      color: var(--text-3);
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="app-header">
+    <div>
+      <h1>Report Comment Selector</h1>
+      <div class="header-meta">v1.0.0 · Effective 08-Jun-2026 · Image Analysis</div>
+    </div>
+    <button class="btn" id="aboutBtn">About</button>
+  </header>
+
+  <datalist id="vesselOptions"></datalist>
+  <datalist id="segmentOptions"></datalist>
+  <datalist id="faiVesselOptions"></datalist>
+
+  <div class="layout">
+
+    <!-- Left: comment browser -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Comments</span>
+        <span class="badge badge-neutral" id="selectedCount">0 selected</span>
+      </div>
+      <div class="search-wrap">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="searchBox" class="search-box" placeholder="Search comments…" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="warning-box" id="warningBox" role="alert">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="warningText"></span>
+      </div>
+      <div id="commentList" class="comment-list">
+        <div class="loading-msg">Loading comments…</div>
+      </div>
+    </div>
+
+    <!-- Right: selection + output -->
+    <div class="right-panel">
+
+      <!-- Selected comments -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Selected</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span class="badge" id="selectedBadge">0</span>
+            <button class="btn" id="clearAllBtn" style="font-size:12px;padding:4px 10px">Clear all</button>
+          </div>
+        </div>
+        <div id="selectedReview" class="selected-list">
+          <div class="empty-state">No comments selected yet.</div>
+        </div>
+      </div>
+
+      <!-- Output panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Output</span>
+        </div>
+        <div class="output-section">
+          <div class="output-label">English (UK)</div>
+          <div class="output-wrap">
+            <textarea id="englishOutput" class="output-textarea" readonly aria-label="English UK combined comments"></textarea>
+          </div>
+          <button class="btn copy-btn" id="copyEnBtn">Copy English (UK)</button>
+        </div>
+
+        <div class="lang-section">
+          <div class="output-label">Show translations</div>
+          <div class="lang-grid">
+            <label class="lang-toggle" id="toggle-EnglishUS">
+              <input type="checkbox" class="language-toggle" data-language="EnglishUS"> English (US)
+            </label>
+            <label class="lang-toggle" id="toggle-German">
+              <input type="checkbox" class="language-toggle" data-language="German"> German
+            </label>
+            <label class="lang-toggle" id="toggle-French">
+              <input type="checkbox" class="language-toggle" data-language="French"> French
+            </label>
+            <label class="lang-toggle" id="toggle-Italian">
+              <input type="checkbox" class="language-toggle" data-language="Italian"> Italian
+            </label>
+          </div>
+        </div>
+
+        <div id="EnglishUSSection" class="hidden">
+          <div class="output-section">
+            <div class="output-label">English (US)</div>
+            <textarea id="EnglishUSOutput" class="output-textarea" readonly aria-label="English US combined comments"></textarea>
+            <button class="btn copy-btn copy-lang-btn" data-target="EnglishUSOutput">Copy English (US)</button>
+          </div>
+        </div>
+
+        <div id="GermanSection" class="hidden">
+          <div class="output-section">
+            <div class="output-label">German</div>
+            <textarea id="GermanOutput" class="output-textarea" readonly aria-label="German combined comments"></textarea>
+            <button class="btn copy-btn copy-lang-btn" data-target="GermanOutput">Copy German</button>
+          </div>
+        </div>
+
+        <div id="FrenchSection" class="hidden">
+          <div class="output-section">
+            <div class="output-label">French</div>
+            <textarea id="FrenchOutput" class="output-textarea" readonly aria-label="French combined comments"></textarea>
+            <button class="btn copy-btn copy-lang-btn" data-target="FrenchOutput">Copy French</button>
+          </div>
+        </div>
+
+        <div id="ItalianSection" class="hidden">
+          <div class="output-section">
+            <div class="output-label">Italian</div>
+            <textarea id="ItalianOutput" class="output-textarea" readonly aria-label="Italian combined comments"></textarea>
+            <button class="btn copy-btn copy-lang-btn" data-target="ItalianOutput">Copy Italian</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- About modal -->
+  <div id="aboutModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title" id="modalTitle">Report Comment Selector</span>
+        <button class="modal-close" id="closeAbout" aria-label="Close">×</button>
+      </div>
+      <div class="modal-meta"><strong>Version:</strong> 1.0.0</div>
+      <div class="modal-meta"><strong>Effective Date:</strong> 08-Jun-2026</div>
+      <div class="modal-meta"><strong>Owner:</strong> Image Analysis</div>
+      <p class="modal-desc">
+        This application is the controlled online source for approved report comments.
+        Users shall use the current online version only.
+      </p>
+      <table class="changelog-table">
+        <thead>
+          <tr><th>Version</th><th>Date</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="version-badge">1.0.0</span></td>
+            <td>08-Jun-2026</td>
+            <td>Initial controlled release</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────────
+    let comments = [];
+    let vessels = [];
+    let segments = [];
+    let faiVessels = [];
+    let selectedOrder = [];
+
+    const LANGUAGES = ["EnglishUS", "German", "French", "Italian"];
+
+    // ── DOM refs ───────────────────────────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+    const commentListEl = $("commentList");
+    const searchBoxEl   = $("searchBox");
+    const warningBoxEl  = $("warningBox");
+    const warningTextEl = $("warningText");
+    const selectedReviewEl = $("selectedReview");
+    const selectedCountEl  = $("selectedCount");
+    const selectedBadgeEl  = $("selectedBadge");
+
+    // ── Data loading ───────────────────────────────────────────────────────────
+    Promise.all([
+      fetchCSV("comments.csv"),
+      fetchCSV("vessels.csv"),
+      fetchCSV("segments.csv"),
+      fetchCSV("fai_vessels.csv"),
+    ]).then(([c, v, s, f]) => {
+      comments  = c;
+      vessels   = v.filter(x => x.English?.trim());
+      segments  = s.filter(x => x.English?.trim());
+      faiVessels = f.filter(x => x.English?.trim());
+
+      populateDatalist("vesselOptions", vessels);
+      populateDatalist("segmentOptions", segments);
+      populateDatalist("faiVesselOptions", faiVessels);
+
+      buildCommentList(comments);
+    }).catch(err => {
+      commentListEl.innerHTML = `<div class="loading-msg">Could not load data files. Make sure comments.csv, vessels.csv, segments.csv and fai_vessels.csv are in the same folder as index.html.</div>`;
+      console.error(err);
+    });
+
+    async function fetchCSV(path) {
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(`Failed to fetch ${path}: ${res.status}`);
+      return parseCSV(await res.text());
+    }
+
+    // ── CSV parsing ────────────────────────────────────────────────────────────
+    function parseCSV(text) {
+      const rows = text.trim().split(/\r?\n/).map(parseCSVRow);
+      const headers = rows.shift().map(h => h.trim());
+      return rows.map(row => Object.fromEntries(headers.map((h, i) => [h, (row[i] ?? "").trim()])));
+    }
+
+    function parseCSVRow(row) {
+      const result = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < row.length; i++) {
+        const ch = row[i];
+        if (ch === '"' && inQuotes && row[i+1] === '"') { current += '"'; i++; }
+        else if (ch === '"') { inQuotes = !inQuotes; }
+        else if (ch === ',' && !inQuotes) { result.push(current); current = ""; }
+        else { current += ch; }
+      }
+      result.push(current);
+      return result;
+    }
+
+    // ── Datalist helpers ───────────────────────────────────────────────────────
+    function populateDatalist(id, data) {
+      const list = $(id);
+      list.innerHTML = "";
+      data.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item.English;
+        list.appendChild(opt);
+      });
+    }
+
+    // ── Build comment tree ─────────────────────────────────────────────────────
+    function buildCommentList(data) {
+      const fragment = document.createDocumentFragment();
+
+      let currentCatEl = null;
+      let currentSubEl = null;
+      let currentCat = "";
+      let currentSub = "";
+      let catCount = 0;
+      let subCount = 0;
+
+      // Helper: update count badges
+      function finaliseSub() {
+        if (currentSubEl) {
+          const badge = currentSubEl.querySelector(".cat-badge");
+          if (badge) badge.textContent = subCount;
+        }
+        subCount = 0;
+      }
+      function finaliseCat() {
+        finaliseSub();
+        if (currentCatEl) {
+          const badge = currentCatEl.querySelector(".cat-badge");
+          if (badge) badge.textContent = catCount;
+        }
+        catCount = 0;
+      }
+
+      data.forEach((comment, index) => {
+        // New category
+        if (comment.Category !== currentCat) {
+          finaliseCat();
+          currentCat = comment.Category;
+          currentSub = "";
+
+          currentCatEl = makeCategoryHeading(comment.Category || "Uncategorised");
+          fragment.appendChild(currentCatEl);
+          currentSubEl = null;
+        }
+
+        // New subcategory
+        if (comment.Subcategory !== currentSub) {
+          finaliseSub();
+          currentSub = comment.Subcategory;
+
+          currentSubEl = makeSubcategoryHeading(comment.Subcategory || "General");
+          currentSubEl.classList.add("hidden");
+          fragment.appendChild(currentSubEl);
+        }
+
+        // Comment item
+        const item = makeCommentItem(comment, index);
+        item.classList.add("hidden");
+        fragment.appendChild(item);
+
+        catCount++;
+        subCount++;
+      });
+      finaliseCat();
+
+      commentListEl.innerHTML = "";
+      commentListEl.appendChild(fragment);
+    }
+
+    function makeCategoryHeading(label) {
+      const el = document.createElement("div");
+      el.className = "category-heading";
+      el.innerHTML = `<span>${escapeHTML(label)}</span><div style="display:flex;gap:8px;align-items:center"><span class="badge badge-neutral cat-badge">0</span><span class="category-chevron">›</span></div>`;
+      el.addEventListener("click", () => toggleCategory(el));
+      return el;
+    }
+
+    function makeSubcategoryHeading(label) {
+      const el = document.createElement("div");
+      el.className = "subcategory-heading";
+      el.innerHTML = `<span>${escapeHTML(label)}</span><div style="display:flex;gap:6px;align-items:center"><span class="badge badge-neutral cat-badge" style="font-size:11px">0</span><span class="subcategory-chevron">›</span></div>`;
+      el.addEventListener("click", () => toggleSubcategory(el));
+      return el;
+    }
+
+    function toggleCategory(el) {
+      if (searchBoxEl.value.trim()) return;
+      const opening = !el.classList.contains("open");
+      el.classList.toggle("open", opening);
+
+      let next = el.nextElementSibling;
+      while (next && !next.classList.contains("category-heading")) {
+        if (next.classList.contains("subcategory-heading")) {
+          next.classList.toggle("hidden", !opening);
+          if (!opening) next.classList.remove("open");
+        } else if (next.classList.contains("comment-item")) {
+          next.classList.add("hidden");
+        }
+        next = next.nextElementSibling;
+      }
+    }
+
+    function toggleSubcategory(el) {
+      if (searchBoxEl.value.trim()) return;
+      const opening = !el.classList.contains("open");
+      el.classList.toggle("open", opening);
+
+      let next = el.nextElementSibling;
+      while (next && !next.classList.contains("subcategory-heading") && !next.classList.contains("category-heading")) {
+        next.classList.toggle("hidden", !opening);
+        next = next.nextElementSibling;
+      }
+    }
+
+    function makeCommentItem(comment, index) {
+      const item = document.createElement("div");
+      item.className = "comment-item";
+      item.dataset.index = index;
+      item.dataset.searchText = [
+        comment.Category, comment.Subcategory,
+        comment.English, comment.EnglishUS,
+        comment.German, comment.French, comment.Italian,
+      ].join(" ").toLowerCase();
+
+      const inner = document.createElement("div");
+      inner.className = "comment-inner";
+
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.className = "comment-checkbox";
+      cb.dataset.index = index;
+      cb.setAttribute("aria-label", `Select comment: ${comment.English}`);
+
+      cb.addEventListener("change", () => {
+        item.classList.toggle("selected", cb.checked);
+        if (cb.checked && !selectedOrder.includes(index)) selectedOrder.push(index);
+        else if (!cb.checked) selectedOrder = selectedOrder.filter(i => i !== index);
+        updateOutputs();
+      });
+
+      // Clicking the row (not the checkbox or a dropdown) toggles the checkbox
+      item.addEventListener("click", e => {
+        if (e.target === cb || e.target.classList.contains("dropdown-input")) return;
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event("change"));
+      });
+
+      const textDiv = document.createElement("div");
+      textDiv.className = "comment-text";
+      renderCommentText(textDiv, comment.English, index);
+
+      inner.appendChild(cb);
+      inner.appendChild(textDiv);
+      item.appendChild(inner);
+      return item;
+    }
+
+    // ── Render comment text with dropdowns ────────────────────────────────────
+    function renderCommentText(container, text, commentIndex) {
+      const parts = String(text || "").split(/(\[vessel\]|\[segment\]|\[fai_vessel\])/g);
+      let vn = 0, sn = 0, fn = 0;
+
+      parts.forEach(part => {
+        if (part === "[vessel]") {
+          container.appendChild(makeDropdownInput(commentIndex, "vessel", vn++, "vesselOptions", "Select vessel"));
+        } else if (part === "[segment]") {
+          container.appendChild(makeDropdownInput(commentIndex, "segment", sn++, "segmentOptions", "Select segment"));
+        } else if (part === "[fai_vessel]") {
+          container.appendChild(makeDropdownInput(commentIndex, "fai_vessel", fn++, "faiVesselOptions", "Select FAI vessel"));
+        } else {
+          const span = document.createElement("span");
+          span.className = "comment-text-part";
+          span.dataset.original = part;
+          span.textContent = part;
+          container.appendChild(span);
+        }
+      });
+    }
+
+    function makeDropdownInput(commentIndex, type, num, listId, label) {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "dropdown-input";
+      input.setAttribute("list", listId);
+      input.placeholder = label;
+      input.dataset.index = commentIndex;
+      input.dataset.placeholder = type;
+      input.dataset.number = num;
+      input.addEventListener("input", () => {
+        input.classList.remove("missing");
+        updateOutputs();
+      });
+      return input;
+    }
+
+    // ── Lookup helpers ─────────────────────────────────────────────────────────
+    function findReplacement(type, value) {
+      const source = type === "vessel" ? vessels : type === "segment" ? segments : faiVessels;
+      return source.find(item => item.English === value);
+    }
+
+    function replacePlaceholders(text, inputs, lang) {
+      let out = text || "";
+      inputs.forEach(input => {
+        const rep = findReplacement(input.dataset.placeholder, input.value);
+        if (!input.value || !rep) return;
+        out = out.replace(`[${input.dataset.placeholder}]`, rep[lang] || rep.English || "");
+      });
+      return out;
+    }
+
+    function getEnglishComment(index) {
+      const comment = comments[index];
+      let text = comment.English || "";
+      document.querySelectorAll(`.dropdown-input[data-index="${index}"]`).forEach(input => {
+        const rep = findReplacement(input.dataset.placeholder, input.value);
+        text = text.replace(`[${input.dataset.placeholder}]`, rep ? rep.English : (input.value || `[${input.dataset.placeholder}]`));
+      });
+      return text;
+    }
+
+    // ── Validation ─────────────────────────────────────────────────────────────
+    function validateSelected() {
+      let valid = true;
+      let firstMissing = null;
+
+      document.querySelectorAll(".dropdown-input").forEach(input => {
+        const parentItem = input.closest(".comment-item");
+        const cb = parentItem?.querySelector("input[type='checkbox']");
+        if (!cb?.checked) { input.classList.remove("missing"); return; }
+        const match = findReplacement(input.dataset.placeholder, input.value);
+        if (!input.value || !match) {
+          input.classList.add("missing");
+          if (!firstMissing) firstMissing = input;
+          valid = false;
+        } else {
+          input.classList.remove("missing");
+        }
+      });
+
+      if (!valid) {
+        warningTextEl.textContent = "Complete all vessel, FAI vessel and segment fields with a valid option before copying.";
+        warningBoxEl.classList.add("visible");
+        firstMissing?.focus();
+      } else {
+        warningBoxEl.classList.remove("visible");
+      }
+      return valid;
+    }
+
+    // ── Update outputs ─────────────────────────────────────────────────────────
+    function updateOutputs() {
+      // Keep selectedOrder in sync with actual checked state
+      selectedOrder = selectedOrder.filter(index => {
+        const cb = document.querySelector(`input[type='checkbox'][data-index="${index}"]`);
+        return cb?.checked;
+      });
+
+      const count = selectedOrder.length;
+      selectedCountEl.textContent = `${count} selected`;
+      selectedBadgeEl.textContent = count;
+
+      const enLines = [];
+      const transLines = Object.fromEntries(LANGUAGES.map(l => [l, []]));
+
+      selectedOrder.forEach(index => {
+        const comment = comments[index];
+        const inputs = document.querySelectorAll(`.dropdown-input[data-index="${index}"]`);
+
+        // Only include in output when all dropdowns are resolved
+        const allResolved = [...inputs].every(inp => !!findReplacement(inp.dataset.placeholder, inp.value) || !inp.value);
+        const allFilled   = [...inputs].every(inp => inp.value && findReplacement(inp.dataset.placeholder, inp.value));
+
+        if (inputs.length === 0 || allFilled) {
+          enLines.push(replacePlaceholders(comment.English || "", inputs, "English"));
+          LANGUAGES.forEach(l => transLines[l].push(replacePlaceholders(comment[l] || comment.English || "", inputs, l)));
+        }
+      });
+
+      $("englishOutput").value = enLines.join("\n");
+      LANGUAGES.forEach(l => $(`${l}Output`).value = transLines[l].join("\n"));
+
+      updateSelectedReview();
+    }
+
+    // ── Selected review panel ──────────────────────────────────────────────────
+    function updateSelectedReview() {
+      selectedReviewEl.innerHTML = "";
+
+      if (selectedOrder.length === 0) {
+        selectedReviewEl.innerHTML = `<div class="empty-state">No comments selected yet.</div>`;
+        return;
+      }
+
+      selectedOrder.forEach(index => {
+        const row = document.createElement("div");
+        row.className = "selected-item";
+        row.draggable = true;
+        row.dataset.index = index;
+
+        const handle = document.createElement("span");
+        handle.className = "drag-handle";
+        handle.textContent = "⠿";
+        handle.setAttribute("aria-hidden", "true");
+
+        const text = document.createElement("span");
+        text.className = "selected-item-text";
+        text.textContent = getEnglishComment(index);
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "remove-btn";
+        removeBtn.textContent = "×";
+        removeBtn.setAttribute("aria-label", "Remove comment");
+        removeBtn.addEventListener("click", e => {
+          e.stopPropagation();
+          uncheckComment(index);
+        });
+
+        // Drag-and-drop reordering
+        row.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", index));
+        row.addEventListener("dragover",  e => { e.preventDefault(); row.classList.add("drag-over"); });
+        row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+        row.addEventListener("drop", e => {
+          e.preventDefault();
+          row.classList.remove("drag-over");
+          const dragged = Number(e.dataTransfer.getData("text/plain"));
+          const target  = Number(row.dataset.index);
+          if (dragged === target) return;
+          const fromIdx = selectedOrder.indexOf(dragged);
+          const toIdx   = selectedOrder.indexOf(target);
+          if (fromIdx === -1 || toIdx === -1) return;
+          const arr = [...selectedOrder];
+          arr.splice(fromIdx, 1);
+          arr.splice(toIdx, 0, dragged);
+          selectedOrder = arr;
+          updateOutputs();
+        });
+
+        row.appendChild(handle);
+        row.appendChild(text);
+        row.appendChild(removeBtn);
+        selectedReviewEl.appendChild(row);
+      });
+    }
+
+    function uncheckComment(index) {
+      const cb   = document.querySelector(`input[type='checkbox'][data-index="${index}"]`);
+      const item = document.querySelector(`.comment-item[data-index="${index}"]`);
+      if (cb)   { cb.checked = false; }
+      if (item) { item.classList.remove("selected"); }
+      selectedOrder = selectedOrder.filter(i => i !== index);
+      updateOutputs();
+    }
+
+    // ── Search ─────────────────────────────────────────────────────────────────
+    searchBoxEl.addEventListener("input", () => {
+      const term = searchBoxEl.value.toLowerCase().trim();
+      clearHighlights();
+
+      if (!term) {
+        // Collapse back to all-closed state
+        document.querySelectorAll(".category-heading").forEach(el => {
+          el.classList.remove("hidden");
+          el.classList.remove("open");
+        });
+        document.querySelectorAll(".subcategory-heading, .comment-item").forEach(el => {
+          el.classList.add("hidden");
+          el.classList.remove("open");
+        });
+        return;
+      }
+
+      // Hide everything, then show matches and their ancestors
+      document.querySelectorAll(".category-heading, .subcategory-heading, .comment-item").forEach(el => {
+        el.classList.add("hidden");
+        el.classList.remove("open");
+      });
+
+      document.querySelectorAll(".comment-item").forEach(item => {
+        if (!item.dataset.searchText.includes(term)) return;
+        item.classList.remove("hidden");
+        highlightItem(item, term);
+        revealAncestors(item);
+      });
+    });
+
+    function revealAncestors(item) {
+      let prev = item.previousElementSibling;
+      while (prev) {
+        if (prev.classList.contains("subcategory-heading") || prev.classList.contains("category-heading")) {
+          prev.classList.remove("hidden");
+          break;
+        }
+        prev = prev.previousElementSibling;
+      }
+      prev = item.previousElementSibling;
+      while (prev) {
+        if (prev.classList.contains("category-heading")) {
+          prev.classList.remove("hidden");
+          break;
+        }
+        prev = prev.previousElementSibling;
+      }
+    }
+
+    function highlightItem(item, term) {
+      const regex = new RegExp(`(${escapeRegExp(term)})`, "gi");
+      item.querySelectorAll(".comment-text-part").forEach(span => {
+        const original = span.dataset.original || "";
+        span.innerHTML = escapeHTML(original).replace(regex, "<mark>$1</mark>");
+      });
+    }
+
+    function clearHighlights() {
+      document.querySelectorAll(".comment-text-part").forEach(span => {
+        span.textContent = span.dataset.original || "";
+      });
+    }
+
+    // ── Copy helpers ───────────────────────────────────────────────────────────
+    function copyToClipboard(textareaId, btn) {
+      if (!validateSelected()) return;
+      updateOutputs();
+      const ta = $(textareaId);
+      navigator.clipboard.writeText(ta.value).then(() => {
+        btn.textContent = "✓ Copied";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = btn.dataset.label;
+          btn.classList.remove("copied");
+        }, 2000);
+      });
+    }
+
+    $("copyEnBtn").dataset.label = "Copy English (UK)";
+    $("copyEnBtn").addEventListener("click", () => copyToClipboard("englishOutput", $("copyEnBtn")));
+
+    document.querySelectorAll(".copy-lang-btn").forEach(btn => {
+      btn.dataset.label = btn.textContent;
+      btn.addEventListener("click", () => copyToClipboard(btn.dataset.target, btn));
+    });
+
+    // ── Language toggles ───────────────────────────────────────────────────────
+    document.querySelectorAll(".language-toggle").forEach(toggle => {
+      toggle.addEventListener("change", () => {
+        const lang = toggle.dataset.language;
+        const section = $(`${lang}Section`);
+        const label   = $(`toggle-${lang}`);
+        section.classList.toggle("hidden", !toggle.checked);
+        label.classList.toggle("active", toggle.checked);
+      });
+    });
+
+    // ── Clear all ──────────────────────────────────────────────────────────────
+    $("clearAllBtn").addEventListener("click", () => {
+      [...selectedOrder].forEach(index => uncheckComment(index));
+    });
+
+    // ── About modal ────────────────────────────────────────────────────────────
+    $("aboutBtn").addEventListener("click", () => $("aboutModal").classList.remove("hidden"));
+    $("closeAbout").addEventListener("click", () => $("aboutModal").classList.add("hidden"));
+    $("aboutModal").addEventListener("click", e => {
+      if (e.target === $("aboutModal")) $("aboutModal").classList.add("hidden");
+    });
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") $("aboutModal").classList.add("hidden");
+    });
+
+    // ── Utility ────────────────────────────────────────────────────────────────
+    function escapeHTML(str) {
+      return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    }
+    function escapeRegExp(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+  </script>
+
+</body>
+</html>
